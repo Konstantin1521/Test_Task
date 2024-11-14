@@ -47,6 +47,18 @@
 Для создания таблиц в базе данных необходимо выполнить следующую команду из папки fastapi-application:
 
 ```bash
+docker ps
+```
+берем имя контейнера
+```bash
+docker exec -it <имя_контейнера> /bin/bash
+```
+
+```bash
+cd fastapi_application
+```
+
+```bash
 alembic upgrade head
 ```
 миграция уже находится в папке alembic/versions

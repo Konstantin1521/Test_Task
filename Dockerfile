@@ -4,11 +4,12 @@ WORKDIR /app
 
 COPY requirements.txt ./
 COPY .env ./
+COPY start.sh ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY fastapi-application ./fastapi-application
+COPY fastapi_application ./fastapi_application
 
-ENV PYTHONPATH=/app/fastapi-application
+ENV PYTHONPATH=/app/fastapi_application
 
-CMD ["uvicorn", "fastapi-application.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]

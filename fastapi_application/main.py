@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 async def lifespan(app: FastAPI):
-    print("Database URL:", settings.db.url)
     await start_broker()
     broker_task = asyncio.create_task(app_rb.run())
 
@@ -49,6 +48,3 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 app.include_router(api_router, prefix=settings.api_prefix.prefix)
-
-# if __name__ == "__main__":
-#     uvicorn.run("main:app", host=settings.run.host, port=settings.run.port, reload=True)
