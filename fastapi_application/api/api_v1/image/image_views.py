@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["images"])
 
 
+async def publish_message(data: dict):
+    try:
+        await broker.publish(json.dumps(data), queue=queue.name)
+    except Exception as e:
+        logger.error(f"Failed to publish message: {e}")
+
+
 @router.get("/get_all", response_model=list[Image])
 async def get_images(
     current_user: UserResponse = Depends(utils_auth.get_current_auth_user),
@@ -28,7 +35,15 @@ async def get_images(
 ):
 
     try:
+        data = {
+            "User_id": current_user.id,
+            "Method": "get_all",
+            "Username": current_user.username,
+        }
+
         images = await CRUDImage.get_all_elements(session=session)
+
+        await publish_message(data)
         return images
 
     except Exception:
@@ -44,12 +59,29 @@ async def get_image(
     current_user: UserResponse = Depends(utils_auth.get_current_auth_user),
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
-    image = await CRUDImage.get_element_by_id(session=session, element_id=image_id)
-    if image is None:
+    try:
+
+        image = await CRUDImage.get_element_by_id(session=session, element_id=image_id)
+
+        data = {
+            "User_id": current_user.id,
+            "Image_id": image_id,
+            "Method": "get",
+        }
+
+        if image is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Image not found"
+            )
+
+        await publish_message(data)
+        return image
+
+    except Exception:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Image not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get image",
         )
-    return image
 
 
 @router.post("/create/", response_model=ImageCreate)
@@ -63,17 +95,15 @@ async def create_image(
             session=session, element_create=image_create
         )
 
-        try:
-            image_data = {
-                "User_id": current_user.id,
-                "Image_id": image.id,
-                "Method": "create",
-            }
-            await broker.publish(json.dumps(image_data), queue=queue.name)
-        except Exception as e:
-            logger.error(f"Failed to publish message: {e}")
+        image_data = {
+            "User_id": current_user.id,
+            "Image_id": image.id,
+            "Method": "create",
+        }
 
+        await publish_message(image_data)
         return image
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -90,28 +120,25 @@ async def update_image(
 ):
     try:
         image = await CRUDImage.get_element_by_id(session=session, element_id=image_id)
+
         if image is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Image not found"
             )
+
         image = await CRUDImage.update_element(
             session=session, element=image, element_update=image_update
         )
 
-        try:
+        image_data = {
+            "User_id": current_user.id,
+            "Image_id": image.id,
+            "Method": "update",
+        }
 
-            image_data = {
-                "User_id": current_user.id,
-                "Image_id": image.id,
-                "Method": "update",
-            }
-
-            await broker.publish(json.dumps(image_data), queue=queue.name)
-
-        except Exception as e:
-            logger.error(f"Failed to publish message: {e}")
-
+        await publish_message(image_data)
         return image
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -135,17 +162,14 @@ async def delete_image(
             )
         await CRUDImage.delete_element(session=session, element=image)
 
-        try:
-            image_data = {
-                "User_id": current_user.id,
-                "Image_id": image.id,
-                "Method": "delete",
-            }
+        image_data = {
+            "User_id": current_user.id,
+            "Image_id": image.id,
+            "Method": "delete",
+        }
 
-            await broker.publish(json.dumps(image_data), queue=queue.name)
-
-        except Exception as e:
-            logger.error(f"Failed to publish message: {e}")
+        await publish_message(image_data)
+        return {"status": "success"}
 
     except Exception:
         raise HTTPException(
@@ -153,4 +177,4 @@ async def delete_image(
             detail="Delete failed try again later",
         )
 
-    return {"status": "success"}
+

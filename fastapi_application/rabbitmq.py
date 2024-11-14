@@ -23,13 +23,11 @@ async def process_message(message):
     try:
         data = json.loads(message)
         logger.info(f"Received message: {data}")
-        print(data)
     except json.JSONDecodeError as e:
         logger.error(f"Failed to decode message: {e}")
         print(f"Failed to decode message: {e}")
     except Exception as e:
         logger.error(f"Failed to process message: {e}")
-        print(f"Failed to process message: {e}")
 
 
 @broker.subscriber(queue)
